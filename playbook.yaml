@@ -1,0 +1,6 @@
+---
+- name: Prepare Proxmox template with Cloud-Init
+  hosts: pve
+  gather_facts: false
+  roles:
+    - proxmox

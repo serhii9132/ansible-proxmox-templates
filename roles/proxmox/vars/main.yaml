@@ -1,0 +1,43 @@
+__proxmox_cloudinit_images:
+  - name: debian-12-tmp
+    image_url: https://cdimage.debian.org/images/cloud/bookworm/latest
+    image_name: debian-12-generic-amd64.qcow2
+    cloudinit_config: debian.yaml
+  - name: debian-13-tmp
+    image_url: https://cdimage.debian.org/images/cloud/trixie/latest
+    image_name: debian-13-generic-amd64.qcow2
+    cloudinit_config: debian.yaml
+  - name: ubuntu-22.04-tmp
+    image_url: https://cloud-images.ubuntu.com/jammy/current
+    image_name: jammy-server-cloudimg-amd64.img
+    cloudinit_config: ubuntu.yaml
+  - name: ubuntu-24.04-tmp
+    image_url: https://cloud-images.ubuntu.com/noble/current
+    image_name: noble-server-cloudimg-amd64.img
+    cloudinit_config: ubuntu.yaml
+  - name: almalinux-8-tmp
+    image_url: https://repo.almalinux.org/almalinux/8/cloud/x86_64/images
+    image_name: AlmaLinux-8-GenericCloud-latest.x86_64.qcow2
+    cloudinit_config: almalinux-8.yaml
+
+__proxmox_downloads_dir: /var/tmp
+
+__proxmox_name_storage: local
+
+__proxmox_vm_agent: "1"
+__proxmox_vm_memory: 4096
+__proxmox_vm_cpu_type: host
+__proxmox_vm_cpu_cores: 2
+__proxmox_vm_os_type: l26
+__proxmox_vm_serial:
+  serial0: socket
+__proxmox_vm_net:
+  net0: virtio,bridge=vmbr0
+__proxmox_vm_ci_drive:
+  ide2: "{{ __proxmox_name_storage }}:cloudinit,format=qcow2"
+
+__proxmox_scsihw_model: virtio-scsi-single
+
+__proxmox_disk_format: qcow2
+__proxmox_disk_size: +30G
+__proxmox_disk_slot: scsi0

@@ -1,0 +1,4 @@
+.ansible
+.vscode
+host_vars
+logs

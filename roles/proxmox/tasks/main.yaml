@@ -1,0 +1,103 @@
+---
+- name: Install proxmoxer
+  ansible.builtin.apt:
+    name: python3-proxmoxer
+    state: present
+
+- name: Remove existsing templates
+  community.general.proxmox_kvm:
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_token_id: "{{ proxmox_api_token_id }}"
+    api_token_secret: "{{ proxmox_api_token_secret }}"
+    name: "{{ item.name }}"
+    state: absent
+  loop: "{{ __proxmox_cloudinit_images }}"
+
+- name: Download cloud-init images to Proxmox storage
+  ansible.builtin.get_url:
+    url: "{{ item.image_url }}/{{ item.image_name }}"
+    dest: "{{ __proxmox_downloads_dir }}/{{ item.image_name }}"
+    mode: '0644'
+  loop: "{{ __proxmox_cloudinit_images }}"
+
+- name: Render Cloud-Init configs
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/var/lib/vz/snippets/{{ item }}"
+    mode: '0644'
+  loop: "{{ __proxmox_cloudinit_images | map(attribute='cloudinit_config') | unique | list }}"
+
+- name: Create virtual machine
+  community.proxmox.proxmox_kvm:
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_token_id: "{{ proxmox_api_token_id }}"
+    api_token_secret: "{{ proxmox_api_token_secret }}"
+    node: "{{ proxmox_node }}"
+    name: "{{ item.name }}"
+    memory: "{{ __proxmox_vm_memory }}"
+    cpu: "{{ __proxmox_vm_cpu_type }}"
+    cores: "{{ __proxmox_vm_cpu_cores }}"
+    ostype: "{{ __proxmox_vm_os_type }}"
+    net: "{{ __proxmox_vm_net }}"
+    serial: "{{ __proxmox_vm_serial }}"
+    agent: "{{ __proxmox_vm_agent }}"
+    scsihw: "{{ __proxmox_scsihw_model }}"
+    bootdisk: "{{ __proxmox_disk_slot }}"
+    boot: "order={{ __proxmox_disk_slot }}"
+    ide: "{{ __proxmox_vm_ci_drive }}"
+    cicustom: "user={{ __proxmox_name_storage }}:snippets/{{ item.cloudinit_config }}"
+  loop: "{{ __proxmox_cloudinit_images }}"
+  register: __proxmox_created_vms
+
+- name: Import disk
+  ansible.builtin.shell:
+    cmd: >
+      qm importdisk {{ item.vmid }}
+      {{ __proxmox_downloads_dir }}/{{ item.item.image_name }}
+      {{ __proxmox_name_storage }}
+      --format {{ __proxmox_disk_format }}
+  args:
+    executable: /bin/bash
+  register: __proxmox_import_disk
+  changed_when: __proxmox_import_disk.rc == 0
+  loop: "{{ __proxmox_created_vms.results }}"
+
+- name: Attach the disk to the VM
+  ansible.builtin.shell:
+    cmd: qm set {{ item.vmid }} --scsi0 {{ __proxmox_name_storage }}:{{ item.vmid }}/vm-{{ item.vmid }}-disk-0.{{ __proxmox_disk_format }}
+  args:
+    executable: /bin/bash
+  register: __proxmox_attach_disk
+  changed_when: __proxmox_attach_disk.rc == 0
+  loop: "{{ __proxmox_created_vms.results }}"
+
+- name: Resize disk
+  community.proxmox.proxmox_disk:
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_token_id: "{{ proxmox_api_token_id }}"
+    api_token_secret: "{{ proxmox_api_token_secret }}"
+    name: "{{ item.name }}"
+    disk: "{{ __proxmox_disk_slot }}"
+    size: "{{ __proxmox_disk_size }}"
+    state: resized
+  loop: "{{ __proxmox_cloudinit_images }}"
+
+- name: Convert VM to template
+  community.proxmox.proxmox_kvm:
+    api_host: "{{ proxmox_api_host }}"
+    api_user: "{{ proxmox_api_user }}"
+    api_token_id: "{{ proxmox_api_token_id }}"
+    api_token_secret: "{{ proxmox_api_token_secret }}"
+    node: "{{ proxmox_node }}"
+    name: "{{ item.name }}"
+    state: template
+  loop: "{{ __proxmox_cloudinit_images }}"
+
+- name: Clean up images from the Proxmox storage
+  ansible.builtin.file:
+    path: "{{ __proxmox_downloads_dir }}/{{ item.image_name }}"
+    state: absent
+  loop: "{{ __proxmox_cloudinit_images }}"

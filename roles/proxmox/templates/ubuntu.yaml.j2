@@ -1,0 +1,26 @@
+#cloud-config
+hostname: ubuntu
+
+package_update: true
+package_upgrade: true
+packages:
+- qemu-guest-agent
+
+timezone: Europe/Kyiv
+
+disable_root: false
+
+chpasswd:
+  expire: false
+  ssh_pwauth: false
+  users:
+  - {name: root, password: {{ proxmox_ci_hash_root_pass }}}
+
+users:
+  - name: root
+    ssh_authorized_keys:
+    - {{ proxmox_ci_ssh_pub_key }}
+
+runcmd:
+- systemctl enable qemu-guest-agent
+- systemctl start qemu-guest-agent
