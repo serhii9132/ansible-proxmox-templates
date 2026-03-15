@@ -9,6 +9,8 @@ Supported images:
 - Ubuntu 22.04
 - Ubuntu 24.04
 - AlmaLinux 8.10
+- AlmaLinux 9.7
+- AlmaLinux 10.1
 ```
 
 ### Notes
