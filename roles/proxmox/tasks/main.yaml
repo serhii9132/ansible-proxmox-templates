@@ -1,4 +1,20 @@
 ---
+- name: Determine which templates to deploy
+  ansible.builtin.set_fact:
+    __target_images: "{{
+      __proxmox_cloudinit_images
+      if (proxmox_target_template | lower == 'all')
+      else (
+        __proxmox_cloudinit_images
+        | selectattr('name', 'equalto', proxmox_target_template)
+        | list
+      )}}"
+
+- name: Fail if proxmox_target_template does not match any known templates
+  ansible.builtin.fail:
+    msg: "Template '{{ proxmox_target_template }}' not found in __proxmox_cloudinit_images"
+  when: __target_images | length == 0
+
 - name: Install proxmoxer
   ansible.builtin.apt:
     name: python3-proxmoxer
@@ -12,21 +28,22 @@
     api_token_secret: "{{ proxmox_api_token_secret }}"
     name: "{{ item.name }}"
     state: absent
-  loop: "{{ __proxmox_cloudinit_images }}"
+  loop: "{{ __target_images }}"
 
 - name: Download cloud-init images to Proxmox storage
   ansible.builtin.get_url:
     url: "{{ item.image_url }}/{{ item.image_name }}"
     dest: "{{ __proxmox_downloads_dir }}/{{ item.image_name }}"
     mode: '0644'
-  loop: "{{ __proxmox_cloudinit_images }}"
+  loop: "{{ __target_images }}"
+  tags: download
 
 - name: Render Cloud-Init configs
   ansible.builtin.template:
     src: "{{ item }}.j2"
     dest: "/var/lib/vz/snippets/{{ item }}"
     mode: '0644'
-  loop: "{{ __proxmox_cloudinit_images | map(attribute='cloudinit_config') | unique | list }}"
+  loop: "{{ __target_images | map(attribute='cloudinit_config') | unique | list }}"
 
 - name: Create virtual machine
   community.proxmox.proxmox_kvm:
@@ -40,7 +57,7 @@
     cpu: "{{ __proxmox_vm_cpu_type }}"
     cores: "{{ __proxmox_vm_cpu_cores }}"
     ostype: "{{ __proxmox_vm_os_type }}"
-    net: "{{ __proxmox_vm_net }}"
+    net: "{{ proxmox_vm_network }}"
     serial: "{{ __proxmox_vm_serial }}"
     agent: "{{ __proxmox_vm_agent }}"
     scsihw: "{{ __proxmox_scsihw_model }}"
@@ -48,7 +65,7 @@
     boot: "order={{ __proxmox_disk_slot }}"
     ide: "{{ __proxmox_vm_ci_drive }}"
     cicustom: "user={{ __proxmox_name_storage }}:snippets/{{ item.cloudinit_config }}"
-  loop: "{{ __proxmox_cloudinit_images }}"
+  loop: "{{ __target_images }}"
   register: __proxmox_created_vms
 
 - name: Import disk
@@ -83,7 +100,7 @@
     disk: "{{ __proxmox_disk_slot }}"
     size: "{{ __proxmox_disk_size }}"
     state: resized
-  loop: "{{ __proxmox_cloudinit_images }}"
+  loop: "{{ __target_images }}"
 
 - name: Convert VM to template
   community.proxmox.proxmox_kvm:
@@ -94,10 +111,11 @@
     node: "{{ proxmox_node }}"
     name: "{{ item.name }}"
     state: template
-  loop: "{{ __proxmox_cloudinit_images }}"
+  loop: "{{ __target_images }}"
 
 - name: Clean up images from the Proxmox storage
   ansible.builtin.file:
     path: "{{ __proxmox_downloads_dir }}/{{ item.image_name }}"
     state: absent
-  loop: "{{ __proxmox_cloudinit_images }}"
+  loop: "{{ __target_images }}"
+  tags: cleanup
