@@ -29,6 +29,7 @@ Supported images:
     <th>Name</th>
     <th>Comment</th>
     <th>Type</th>
+    <th>Default value</th>
   </tr>
 </thead>
 <tbody>
@@ -36,36 +37,49 @@ Supported images:
     <td>proxmox_api_host</td>
     <td>Specify the target host of the Proxmox VE cluster/td>
     <td>str</td>
+    <td>''</td>
   </tr>
   <tr>
     <td>proxmox_api_user</td>
     <td>Specify the user to authenticate with/td>
     <td>str</td>
+    <td>''</td>
   </tr>
   <tr>
     <td>proxmox_api_token_id</td>
     <td>Specify the token ID</td>
     <td>str</td>
+    <td>''</td>
   </tr>
   <tr>
     <td>proxmox_api_token_secret</td>
     <td>Specify the token secret</td>
     <td>str</td>
+    <td>''</td>
   </tr>
   <tr>
     <td>proxmox_node</td>
     <td>Proxmox VE node on which to operate</td>
     <td>str</td>
+    <td>''</td>
   </tr>
    <tr>
     <td>proxmox_ci_hash_root_pass</td>
     <td>Hashed password for the root user</td>
     <td>str</td>
+    <td>''</td>
   </tr>
    <tr>
     <td>proxmox_ci_ssh_pub_key</td>
     <td>SSH key to assign to the root user</td>
     <td>str</td>
+    <td>''</td>
+  </tr>
+  <tr>
+    <td>proxmox_vm_network</td>
+    <td>The network interface parameters for the VM</td>
+    <td>dict</td>
+    <td>net0: virtio,bridge=vmbr1</td>
   </tr>
 </tbody>
 </table>
