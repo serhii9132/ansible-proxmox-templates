@@ -38,7 +38,7 @@
   loop: "{{ __target_images }}"
   tags: download
 
-- name: Render Cloud-Init configs
+- name: Apply Cloud-Init configs from templates
   ansible.builtin.template:
     src: "{{ item }}.j2"
     dest: "/var/lib/vz/snippets/{{ item }}"
@@ -91,16 +91,19 @@
   loop: "{{ __proxmox_created_vms.results }}"
 
 - name: Resize disk
-  community.proxmox.proxmox_disk:
-    api_host: "{{ proxmox_api_host }}"
-    api_user: "{{ proxmox_api_user }}"
-    api_token_id: "{{ proxmox_api_token_id }}"
-    api_token_secret: "{{ proxmox_api_token_secret }}"
-    name: "{{ item.name }}"
-    disk: "{{ __proxmox_disk_slot }}"
-    size: "{{ __proxmox_disk_size }}"
-    state: resized
-  loop: "{{ __target_images }}"
+  ansible.builtin.shell:
+    cmd: qemu-img resize -f qcow2 /var/lib/vz/images/{{ item.vmid }}/vm-{{ item.vmid }}-disk-0.qcow2 {{ __proxmox_disk_size }}
+  args:
+    executable: /bin/bash
+  changed_when: true
+  loop: "{{ __proxmox_created_vms.results }}"
+
+- name: Update disk sizes
+  ansible.builtin.shell:
+    cmd: qm rescan
+  args:
+    executable: /bin/bash
+  changed_when: true
 
 - name: Convert VM to template
   community.proxmox.proxmox_kvm:
