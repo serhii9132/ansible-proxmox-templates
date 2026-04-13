@@ -10,4 +10,4 @@ proxmox_ci_hash_root_pass: ""
 proxmox_ci_ssh_pub_key: ""
 
 proxmox_vm_network:
-  net0: virtio,bridge=vmbr1
+  net0: virtio,bridge=vmbr0

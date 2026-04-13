@@ -35,13 +35,13 @@ Supported images:
 <tbody>
   <tr>
     <td>proxmox_api_host</td>
-    <td>Specify the target host of the Proxmox VE cluster/td>
+    <td>Specify the target host of the Proxmox VE cluster</td>
     <td>str</td>
     <td>''</td>
   </tr>
   <tr>
     <td>proxmox_api_user</td>
-    <td>Specify the user to authenticate with/td>
+    <td>Specify the user to authenticate with</td>
     <td>str</td>
     <td>''</td>
   </tr>
@@ -79,7 +79,7 @@ Supported images:
     <td>proxmox_vm_network</td>
     <td>The network interface parameters for the VM</td>
     <td>dict</td>
-    <td>net0: virtio,bridge=vmbr1</td>
+    <td>net0: virtio,bridge=vmbr0</td>
   </tr>
 </tbody>
 </table>
