@@ -2,4 +2,6 @@ all:
   children:
     target:
       hosts:
-        pve:
+        pve-internal:
+        pve-us:
+        pve-dev:
