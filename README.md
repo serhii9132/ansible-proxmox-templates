@@ -34,6 +34,12 @@ Supported images:
 </thead>
 <tbody>
   <tr>
+    <td>proxmox_target</td>
+    <td>Comma-separated names of the templates to be deployed</td>
+    <td>str</td>
+    <td>all</td>
+  </tr>
+  <tr>
     <td>proxmox_api_host</td>
     <td>Specify the target host of the Proxmox VE cluster</td>
     <td>str</td>
@@ -85,8 +91,11 @@ Supported images:
 </table>
 
 ### Usage
+Examples for playbook execution:
 ```sh
-bash bootstrap.sh
+bash bootstrap.sh -l -pve-dev
+bash bootstrap.sh -e "proxmox_target=debian-12" -l pve-dev
+bash bootstrap.sh -e "proxmox_target=debian-12,debian-13,ubuntu-24.04" -l pve-dev
 ```
 
 ### License

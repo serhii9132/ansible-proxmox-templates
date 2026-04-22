@@ -1,19 +1,27 @@
 ---
 - name: Determine which templates to deploy
   ansible.builtin.set_fact:
-    __target_images: "{{
-      __proxmox_cloudinit_images
-      if (proxmox_target_template | lower == 'all')
-      else (
+    __target_images: >-
+      {{
         __proxmox_cloudinit_images
-        | selectattr('name', 'equalto', proxmox_target_template)
-        | list
-      )}}"
+        if (proxmox_target | lower == 'all')
+        else (
+          __proxmox_cloudinit_images
+          | selectattr('name', 'in', proxmox_target.split(',') | map('trim') | list)
+          | list
+        )
+      }}
 
-- name: Fail if proxmox_target_template does not match any known templates
+- name: Fail if any requested template is missing
   ansible.builtin.fail:
-    msg: "Template '{{ proxmox_target_template }}' not found in __proxmox_cloudinit_images"
-  when: __target_images | length == 0
+    msg: "The following requested templates were not found: {{ __missing_templates | join(', ') }}"
+  vars:
+    __req_templates: "{{ proxmox_target.split(',') | map('trim') | list }}"
+    __found_templates: "{{ __target_images | map(attribute='name') | list }}"
+    __missing_templates: "{{ __req_templates | difference(__found_templates) }}"
+  when:
+    - proxmox_target | default('all') | lower != 'all'
+    - __missing_templates | length > 0
 
 - name: Install proxmoxer
   ansible.builtin.apt:
@@ -26,9 +34,11 @@
     api_user: "{{ proxmox_api_user }}"
     api_token_id: "{{ proxmox_api_token_id }}"
     api_token_secret: "{{ proxmox_api_token_secret }}"
-    name: "{{ item.name }}"
+    name: "{{ item.name }}-tmp"
     state: absent
   loop: "{{ __target_images }}"
+  loop_control:
+    label: "{{ item.name }}"
 
 - name: Download cloud-init images to Proxmox storage
   ansible.builtin.get_url:
@@ -36,6 +46,8 @@
     dest: "{{ __proxmox_downloads_dir }}/{{ item.image_name }}"
     mode: '0644'
   loop: "{{ __target_images }}"
+  loop_control:
+    label: "{{ item.name }}"
   tags: download
 
 - name: Apply Cloud-Init configs from templates
@@ -52,7 +64,7 @@
     api_token_id: "{{ proxmox_api_token_id }}"
     api_token_secret: "{{ proxmox_api_token_secret }}"
     node: "{{ proxmox_node }}"
-    name: "{{ item.name }}"
+    name: "{{ item.name }}-tmp"
     memory: "{{ __proxmox_vm_memory }}"
     cpu: "{{ __proxmox_vm_cpu_type }}"
     cores: "{{ __proxmox_vm_cpu_cores }}"
@@ -66,6 +78,8 @@
     ide: "{{ __proxmox_vm_ci_drive }}"
     cicustom: "user={{ __proxmox_name_storage }}:snippets/{{ item.cloudinit_config }}"
   loop: "{{ __target_images }}"
+  loop_control:
+    label: "{{ item.name }}"
   register: __proxmox_created_vms
 
 - name: Import disk
@@ -79,6 +93,8 @@
     executable: /bin/bash
   register: __proxmox_import_disk
   changed_when: __proxmox_import_disk.rc == 0
+  loop_control:
+    label: "{{ item.item.name }}"
   loop: "{{ __proxmox_created_vms.results }}"
 
 - name: Attach the disk to the VM
@@ -88,6 +104,8 @@
     executable: /bin/bash
   register: __proxmox_attach_disk
   changed_when: __proxmox_attach_disk.rc == 0
+  loop_control:
+    label: "{{ item.item.name }}"
   loop: "{{ __proxmox_created_vms.results }}"
 
 - name: Resize disk
@@ -96,6 +114,8 @@
   args:
     executable: /bin/bash
   changed_when: true
+  loop_control:
+    label: "{{ item.item.name }}"
   loop: "{{ __proxmox_created_vms.results }}"
 
 - name: Update disk sizes
@@ -112,13 +132,15 @@
     api_token_id: "{{ proxmox_api_token_id }}"
     api_token_secret: "{{ proxmox_api_token_secret }}"
     node: "{{ proxmox_node }}"
-    name: "{{ item.name }}"
+    vmid: "{{ item.vmid }}"
     state: template
-  loop: "{{ __target_images }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  loop: "{{ __proxmox_created_vms.results }}"
 
 - name: Clean up images from the Proxmox storage
   ansible.builtin.file:
-    path: "{{ __proxmox_downloads_dir }}/{{ item.image_name }}"
+    path: "{{ __proxmox_downloads_dir }}/{{ item }}"
     state: absent
-  loop: "{{ __target_images }}"
+  loop: "{{ __proxmox_created_vms.results | map(attribute='item.image_name') | list }}"
   tags: cleanup
