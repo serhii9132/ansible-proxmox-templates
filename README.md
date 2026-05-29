@@ -19,7 +19,7 @@ Supported images:
 - Template parameters: 
     - CPU: 2 cores
     - RAM: 4 GB
-    - Disk: ${base_size_of_cloudinit_image} + 30 Gb 
+    - Disk: ${base_size_of_cloudinit_image} + 100 Gb 
 
 ### Playbook variables
 
